@@ -1,0 +1,12 @@
+{
+  "excelFilePath": "\\\\corp.noytech.com\\MDrive\\Kuz WH\\2_Клиенты\\37_R-Mixed\\6_Отчеты и KPI\\02_PS+аналитика\\Аналитика\\Дэшборды\\Универсальный",
+  "_comment": "Укажите путь к xlsx файлу или к ПАПКЕ, где находится файл. Если указана папка, будет использован первый найденный .xlsx файл",
+  "_examples": {
+    "windows_folder": "\\\\corp.noytech.com\\MDrive\\Kuz WH\\Папка",
+    "windows_file": "C:\\Users\\Username\\Documents\\report.xlsx",
+    "windows_network_folder": "Z:\\data\\production",
+    "windows_unc_folder": "\\\\server\\share\\reports",
+    "linux_folder": "/mnt/network/data"
+  },
+  "_note": "Если путь пустой, сервер будет искать первый .xlsx файл в папке проекта. Node modules остаются в папке проекта. Путь может указывать на файл или на папку - в папке будет найден первый .xlsx файл."
+}
