@@ -1,0 +1,33 @@
+feat: Add MULT logic, Excel path configuration, and dual dashboard support
+
+Major Features:
+- Added config.json for specifying Excel file path on corporate/network drives
+- Created MULT logic dashboard (dashboard-mult.html) with operations counting
+- Renamed dashboard.html to dashboard-mop.html for clarity
+- Added main selection page at / to choose between MOP and MULT dashboards
+
+MULT Logic Details:
+- Приёмка MULT: приемка (operationCount)
+- Размещение MULT: перемещения, ручные перемещения, привязка к местам, раскладка на полки (operationCount)
+- Сборка MULT (пикинг): зона хранения MULTI (operationCount)
+- Контроль MULT: контроль (operationCount)
+
+Server Updates:
+- Added loadConfig() to read config.json
+- Added getExcelFilePath() to resolve Excel file location
+- Support for reading xlsx files from any accessible drive
+- Improved console messages with file path information
+- Added routes for /dashboard-mop.html and /dashboard-mult.html
+
+Documentation:
+- README.md: English documentation with examples
+- ИНСТРУКЦИЯ.md: Russian instructions with FAQ
+- CHANGELOG.md: Detailed change history
+- .gitignore: Proper git ignore patterns
+
+Technical Notes:
+- Node modules remain in project folder (not required on network drive)
+- All frontend libraries loaded via CDN
+- Both dashboards can run simultaneously
+- Excel file can be on any accessible drive (local/network/UNC)
+- Auto-fallback to searching .xlsx in project folder if path not configured

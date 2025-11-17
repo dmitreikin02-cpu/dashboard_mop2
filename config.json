@@ -1,0 +1,11 @@
+{
+  "excelFilePath": "",
+  "_comment": "Укажите полный путь к xlsx файлу на корпоративном диске",
+  "_examples": {
+    "windows_local": "C:\\Users\\Username\\Documents\\report.xlsx",
+    "windows_network": "Z:\\data\\production\\report.xlsx",
+    "windows_unc": "\\\\server\\share\\reports\\report.xlsx",
+    "linux": "/mnt/network/data/report.xlsx"
+  },
+  "_note": "Если путь пустой, сервер будет искать первый .xlsx файл в папке проекта. Node modules остаются в папке проекта."
+}

@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MULT Дашборд (Логика B)</title>
+    
+    <!-- CDN Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/customParseFormat.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            padding: 0;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            max-width: 100%;
+            height: 100vh;
+            margin: 0;
+            background: #0f1419;
+            padding: 10px 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            color: #667eea;
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        .last-update {
+            font-size: 0.85rem;
+            color: #aaa;
+            font-weight: 500;
+        }
+        .logic-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .logic-a {
+            background: #00b050;
+            color: white;
+        }
+        .logic-b {
+            background: #ff9800;
+            color: white;
+        }
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+            flex: 1;
+            overflow: hidden;
+        }
+        .chart-container {
+            background: #1a1f2e;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #2a2f3e;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .chart-wrapper {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            margin-bottom: 8px;
+        }
+        .top-performers {
+            background: #0f1419;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid #2a2f3e;
+            flex-shrink: 0;
+        }
+        .top-performers h4 {
+            color: #667eea;
+            margin-bottom: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .top-performers ol {
+            list-style-position: inside;
+            padding-left: 0;
+            margin: 0;
+        }
+        .top-performers li {
+            padding: 3px 5px;
+            margin-bottom: 2px;
+            background: #1a1f2e;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            border-left: 2px solid #667eea;
+            line-height: 1.3;
+            color: #ddd;
+        }
+        .top-performers li:last-child {
+            margin-bottom: 0;
+        }
+        .top-performers li:nth-child(1) {
+            background: #ffd700;
+            border-left-color: #ffa500;
+            font-weight: bold;
+            color: #000;
+        }
+        .top-performers li:nth-child(2) {
+            background: #c0c0c0;
+            border-left-color: #999;
+            color: #000;
+        }
+        .top-performers li:nth-child(3) {
+            background: #cd7f32;
+            border-left-color: #8b5a00;
+            color: #fff;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.5rem;
+            color: #667eea;
+        }
+        .error {
+            background: #ff3b3b;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MULT Дашборд</h1>
+            <div class="last-update" id="lastUpdate">Загрузка данных...</div>
+        </div>
+ 
+        <div id="errorContainer"></div>
+        
+        <div class="charts-section" id="chartsSection">
+            <!-- Графики будут добавлены динамически -->
+        </div>
+    </div>
+ 
+    <script>
+        // ============================================
+        // КОНФИГУРАЦИЯ
+        // ============================================
+        const CONFIG = {
+            EXCEL_FILE_ENDPOINT: '/excel',
+            REFRESH_INTERVAL_MS: 60000,
+            DATE_RANGE_DAYS: 20000,
+            TOP_N: 3,
+            
+            COLORS: {
+                LOW: '#ff3b3b',
+                MID: '#ffcc00',
+                HIGH: '#00b050'
+            }
+        };
+        // ============================================
+        // НОРМАТИВЫ (легко изменяемые)
+        // ============================================
+        const NORMS = {
+            receiving: 4000,      // MULT Приёмка (операций)
+            placement: 200,      // MULT Размещение (операций)
+            picking: 100,        // MULT Сборка (операций)
+            control: 100         // MULT Контроль (операций)
+        };
+        // ============================================
+        // ОПРЕДЕЛЕНИЕ ГРАФИКОВ (MULT ЛОГИКА)
+        // ============================================
+        
+        const CHARTS_CONFIG = [
+            {
+                id: 'mult_receiving',
+                title: 'MULT Приёмка',
+                operations: ['приемка'],
+                metric: 'operationCount',
+                norm: NORMS.receiving,
+                unit: 'операций'
+            },
+            {
+                id: 'mult_placement',
+                title: 'MULT Размещение',
+                operations: ['перемещения', 'ручные перемещения', 'привязка к местам', 'раскладка на полки'],
+                metric: 'operationCount',
+                norm: NORMS.placement,
+                unit: 'операций'
+            },
+            {
+                id: 'mult_picking',
+                title: 'MULT Сборка (пикинг)',
+                operations: ['зона хранения multi'],
+                metric: 'operationCount',
+                norm: NORMS.picking,
+                unit: 'операций'
+            },
+            {
+                id: 'mult_control',
+                title: 'MULT Контроль',
+                operations: ['контроль'],
+                metric: 'operationCount',
+                norm: NORMS.control,
+                unit: 'операций'
+            }
+        ];
+        // ============================================
+        // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+        // ============================================
+        let charts = {};
+        let lastFileModified = null;
+        dayjs.extend(window.dayjs_plugin_customParseFormat);
+        // ============================================
+        // ETL: ЗАГРУЗКА И ОБРАБОТКА ДАННЫХ
+        // ============================================
+        
+        async function loadExcelFile() {
+            try {
+                const cacheBuster = `?t=${new Date().getTime()}`;
+                const response = await fetch(CONFIG.EXCEL_FILE_ENDPOINT + cacheBuster);
+                
+                if (!response.ok) {
+                    throw new Error(`Не удалось загрузить файл: ${response.statusText}`);
+                }
+                
+                const lastModified = response.headers.get('Last-Modified');
+                if (lastModified && lastFileModified && lastModified !== lastFileModified) {
+                    console.log('🔄 Обнаружено изменение файла, обновляем данные...');
+                }
+                lastFileModified = lastModified;
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                
+                return jsonData;
+            } catch (error) {
+                console.error('Ошибка загрузки файла:', error);
+                throw error;
+            }
+        }
+        function parseDate(dateValue) {
+            if (!dateValue) return null;
+            
+            if (typeof dateValue === 'number') {
+                const excelEpoch = new Date(1899, 11, 30);
+                const date = new Date(excelEpoch.getTime() + dateValue * 86400000);
+                return dayjs(date);
+            }
+            
+            if (typeof dateValue === 'string') {
+                const formats = ['DD.MM.YYYY', 'YYYY-MM-DD', 'DD/MM/YYYY', 'MM/DD/YYYY'];
+                for (const format of formats) {
+                    const parsed = dayjs(dateValue, format, true);
+                    if (parsed.isValid()) return parsed;
+                }
+                
+                const parsed = dayjs(dateValue);
+                if (parsed.isValid()) return parsed;
+            }
+            
+            return null;
+        }
+        function parseNumber(value) {
+            if (typeof value === 'number') return value;
+            if (!value) return 0;
+            
+            const strValue = String(value).replace(',', '.');
+            const num = parseFloat(strValue);
+            return isNaN(num) ? 0 : num;
+        }
+        function parseTimeInterval(timeValue) {
+            if (!timeValue) return 0;
+            
+            const str = String(timeValue);
+            const parts = str.split(':').map(p => parseInt(p) || 0);
+            
+            if (parts.length === 3) {
+                return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            } else if (parts.length === 2) {
+                return parts[0] * 60 + parts[1];
+            }
+            
+            return 0;
+        }
+        function filterByDateRange(data, days) {
+            const cutoffDate = dayjs().subtract(days, 'day');
+            
+            return data.filter(row => {
+                const date = parseDate(row['Дата операций']);
+                return date && date.isAfter(cutoffDate);
+            });
+        }
+        function processData(rawData) {
+            const filteredData = filterByDateRange(rawData, CONFIG.DATE_RANGE_DAYS);
+            
+            const processedData = filteredData.map(row => {
+                return {
+                    resource: row['Производственный ресурс'] || '',
+                    date: parseDate(row['Дата операций']),
+                    operation: (row['Название операции'] || '').toLowerCase().trim(),
+                    operationCount: parseNumber(row['Количество операций']),
+                    avgTime: parseNumber(row['Среднее время выполнения операции']),
+                    totalTime: parseNumber(row['Общее время выполнения всех операций']),
+                    workDuration: parseTimeInterval(row['Длительность работы']),
+                    qtyPieces: parseNumber(row['Кол-во, шт']),
+                    qtyPackages: parseNumber(row['Кол-во, уп']),
+                    qtyLines: parseNumber(row['Кол-во, строк']),
+                    weight: parseNumber(row['Вес']),
+                    volume: parseNumber(row['Объем'])
+                };
+            });
+            
+            return processedData;
+        }
+        function groupByEmployee(data, operations, metricField) {
+            const filtered = data.filter(row => {
+                return operations.some(op => row.operation.includes(op));
+            });
+            
+            const grouped = _.groupBy(filtered, 'resource');
+            
+            const result = Object.entries(grouped).map(([employee, rows]) => {
+                const total = _.sumBy(rows, metricField);
+                return {
+                    employee,
+                    value: total
+                };
+            });
+            
+            return _.orderBy(result, ['value'], ['desc']);
+        }
+        function extractMetrics(processedData) {
+            const metrics = {};
+            
+            for (const chart of CHARTS_CONFIG) {
+                const data = groupByEmployee(processedData, chart.operations, chart.metric);
+                if (data.length > 0) {
+                    metrics[chart.id] = {
+                        data: data,
+                        config: chart
+                    };
+                }
+            }
+            
+            return metrics;
+        }
+        // ============================================
+        // ВИЗУАЛИЗАЦИЯ
+        // ============================================
+        
+        function getBarColor(value, norm) {
+            const percentage = (value / norm) * 100;
+            
+            if (percentage < 70) {
+                return CONFIG.COLORS.LOW;
+            } else if (percentage < 100) {
+                return CONFIG.COLORS.MID;
+            } else {
+                return CONFIG.COLORS.HIGH;
+            }
+        }
+        function calculateStepSize(maxValue, norm) {
+            const reference = Math.max(maxValue, norm * 2);
+            const magnitude = Math.pow(10, Math.floor(Math.log10(reference)));
+            const normalized = reference / magnitude;
+            
+            let stepSize;
+            if (normalized <= 1) stepSize = magnitude / 10;
+            else if (normalized <= 2) stepSize = magnitude / 5;
+            else if (normalized <= 5) stepSize = magnitude / 2;
+            else stepSize = magnitude;
+            
+            return Math.ceil(stepSize);
+        }
+        function createChart(canvasId, data, config) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            const labels = data.map(d => d.employee);
+            const values = data.map(d => d.value);
+            const colors = values.map(v => getBarColor(v, config.norm));
+            
+            const total = _.sum(values);
+            const maxValue = Math.max(...values, config.norm * 1.2);
+            const stepSize = calculateStepSize(maxValue, config.norm);
+            
+            const chartTitle = `${config.title} — Всего: ${total.toLocaleString('ru-RU')} (норма: ${config.norm})`;
+            
+            if (charts[config.id]) {
+                charts[config.id].destroy();
+            }
+            
+            charts[config.id] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: config.title,
+                            data: values,
+                            backgroundColor: colors,
+                            borderColor: colors,
+                            borderWidth: 1.5,
+                            borderRadius: 6,
+                            order: 2
+                        },
+                        {
+                            label: `Норма: ${config.norm}`,
+                            data: new Array(labels.length).fill(config.norm),
+                            type: 'line',
+                            borderColor: '#e74c3c',
+                            borderWidth: 2.5,
+                            borderDash: [8, 4],
+                            fill: false,
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: chartTitle,
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            color: '#eee',
+                            padding: {
+                                top: 5,
+                                bottom: 10
+                            }
+                        },
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleFont: {
+                                size: 13,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 12
+                            },
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.y;
+                                    const percentage = ((value / config.norm) * 100).toFixed(0);
+                                    return `${value} (${percentage}% от нормы)`;
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                normLine: {
+                                    type: 'line',
+                                    yMin: config.norm,
+                                    yMax: config.norm,
+                                    borderColor: '#e74c3c',
+                                    borderWidth: 2.5,
+                                    borderDash: [8, 4],
+                                    label: {
+                                        display: true,
+                                        content: `Норма: ${config.norm}`,
+                                        position: 'start',
+                                        backgroundColor: '#e74c3c',
+                                        color: '#fff',
+                                        font: {
+                                            size: 11,
+                                            weight: 'bold'
+                                        },
+                                        padding: 4,
+                                        yAdjust: -10
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: stepSize,
+                                precision: 0,
+                                font: {
+                                    size: 11,
+                                    weight: '500'
+                                },
+                                color: '#ccc'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)',
+                                lineWidth: 1
+                            },
+                            border: {
+                                display: true,
+                                color: '#666'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 10,
+                                    weight: '500'
+                                },
+                                color: '#ccc',
+                                maxRotation: 45,
+                                minRotation: 30
+                            },
+                            grid: {
+                                display: false
+                            },
+                            border: {
+                                display: true,
+                                color: '#666'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        function renderCharts(metrics) {
+            const chartsSection = document.getElementById('chartsSection');
+            chartsSection.innerHTML = '';
+            
+            for (const [chartId, metric] of Object.entries(metrics)) {
+                const chartDiv = document.createElement('div');
+                chartDiv.className = 'chart-container';
+                chartDiv.innerHTML = `
+                    <div class="chart-wrapper">
+                        <canvas id="chart_${chartId}"></canvas>
+                    </div>
+                    <div class="top-performers" id="top_${chartId}"></div>
+                `;
+                chartsSection.appendChild(chartDiv);
+                
+                createChart(`chart_${chartId}`, metric.data, metric.config);
+                
+                updateTopPerformers(chartId, metric.data, metric.config);
+            }
+        }
+        function updateTopPerformers(chartId, data, config) {
+            const topData = data.slice(0, CONFIG.TOP_N);
+            const html = `
+                <h4>🏆 ТОП-3: ${config.title}</h4>
+                <ol>
+                    ${topData.map(item => 
+                        `<li>${item.employee} — <strong>${item.value.toLocaleString('ru-RU')}</strong> ${config.unit}</li>`
+                    ).join('')}
+                </ol>
+            `;
+            document.getElementById(`top_${chartId}`).innerHTML = html;
+        }
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `<div class="error">⚠️ ${message}</div>`;
+        }
+        function hideError() {
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+        function updateLastUpdateTime() {
+            const now = dayjs().format('HH:mm:ss DD.MM.YYYY');
+            document.getElementById('lastUpdate').innerHTML = `
+                Обновлено: ${now}
+                <span class="logic-b">MULT Логика</span>
+            `;
+        }
+        // ============================================
+        // ОСНОВНАЯ ЛОГИКА
+        // ============================================
+        
+        async function updateDashboard() {
+            try {
+                hideError();
+                
+                const rawData = await loadExcelFile();
+                const processedData = processData(rawData);
+                
+                console.log('📊 MULT Дашборд загружает данные...');
+                
+                const metrics = extractMetrics(processedData);
+                
+                if (Object.keys(metrics).length === 0) {
+                    showError('Нет данных для отображения графиков');
+                    return;
+                }
+                
+                renderCharts(metrics);
+                updateLastUpdateTime();
+                
+            } catch (error) {
+                console.error('Ошибка обновления дашборда:', error);
+                showError(`Не удалось обновить дашборд: ${error.message}`);
+            }
+        }
+        async function init() {
+            console.log('🚀 Инициализация дашборда...');
+            
+            await updateDashboard();
+            
+            setInterval(updateDashboard, CONFIG.REFRESH_INTERVAL_MS);
+            
+            console.log('✅ Дашборд готов к работе');
+            console.log('📡 Автоматическое обновление: каждые 60 сек');
+        }
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
