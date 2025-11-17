@@ -26,28 +26,52 @@ function getExcelFilePath() {
         const configuredPath = config.excelFilePath.trim();
         
         if (fs.existsSync(configuredPath)) {
-            console.log(`📊 Используется путь из config.json: ${configuredPath}`);
-            return configuredPath;
+            const stats = fs.statSync(configuredPath);
+            
+            if (stats.isDirectory()) {
+                console.log(`📂 Используется папка из config.json: ${configuredPath}`);
+                return findFirstExcelFileInDirectory(configuredPath);
+            } else if (stats.isFile() && configuredPath.endsWith('.xlsx')) {
+                console.log(`📊 Используется файл из config.json: ${configuredPath}`);
+                return configuredPath;
+            } else {
+                console.error(`❌ Путь указывает не на xlsx файл: ${configuredPath}`);
+                console.log('🔍 Попытка поиска в папке проекта...');
+            }
         } else {
-            console.error(`❌ Файл не найден по пути из config.json: ${configuredPath}`);
+            console.error(`❌ Путь не существует: ${configuredPath}`);
             console.log('🔍 Попытка поиска в папке проекта...');
         }
     }
     
-    return findFirstExcelFile();
+    return findFirstExcelFileInDirectory(__dirname);
 }
 
-function findFirstExcelFile() {
-    const files = fs.readdirSync(__dirname);
-    const excelFile = files.find(file => file.endsWith('.xlsx'));
-    
-    if (!excelFile) {
-        console.error('❌ Excel файл (.xlsx) не найден в папке проекта!');
+function findFirstExcelFileInDirectory(directory) {
+    try {
+        const files = fs.readdirSync(directory);
+        const excelFile = files.find(file => file.endsWith('.xlsx'));
+        
+        if (!excelFile) {
+            if (directory === __dirname) {
+                console.error('❌ Excel файл (.xlsx) не найден в папке проекта!');
+            } else {
+                console.error(`❌ Excel файл (.xlsx) не найден в папке: ${directory}`);
+            }
+            return null;
+        }
+        
+        const fullPath = path.join(directory, excelFile);
+        if (directory === __dirname) {
+            console.log(`📊 Найден Excel файл в папке проекта: ${excelFile}`);
+        } else {
+            console.log(`📊 Найден Excel файл: ${excelFile}`);
+        }
+        return fullPath;
+    } catch (error) {
+        console.error(`❌ Ошибка чтения папки ${directory}:`, error.message);
         return null;
     }
-    
-    console.log(`📊 Найден Excel файл в папке проекта: ${excelFile}`);
-    return path.join(__dirname, excelFile);
 }
  
 const server = http.createServer((req, res) => {
